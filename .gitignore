@@ -1,0 +1,49 @@
+# Environments & secrets
+.env
+.env.local
+*.pem
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Data — commit only small samples, never full datasets.
+# Deliberate exception: this project's whole point is a real messy dataset, so its
+# raw CSV (1.2 MB, CC0) is committed for clean-clone reproducibility — see NOTES.md.
+data/raw/*
+!data/raw/ecommerce_retail_transactions_raw.csv
+data/interim/
+data/processed/
+*.parquet
+*.duckdb
+*.db
+*.sqlite3
+!data/sample/**
+
+# Models & artifacts
+/models/
+*.pt
+*.pth
+*.onnx
+*.pkl
+mlruns/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
