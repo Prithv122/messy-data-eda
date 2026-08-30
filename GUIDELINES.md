@@ -25,11 +25,11 @@ raw to git if large — check size against repo conventions before committing.
 
 ## Acceptance criteria
 
-- [ ] Cleaning pipeline (script or notebook) that resolves every documented data-quality issue,
+- [x] Cleaning pipeline (script or notebook) that resolves every documented data-quality issue,
       with each fix traceable to a decision in `NOTES.md`
-- [ ] Data dictionary (column name, type, meaning, cleaning applied)
-- [ ] EDA with real findings and charts, not just `.describe()`
-- [ ] Tests on the cleaning functions (not just a smoke test)
+- [x] Data dictionary (column name, type, meaning, cleaning applied) — `DATA_DICTIONARY.md`
+- [x] EDA with real findings and charts, not just `.describe()`
+- [x] Tests on the cleaning functions (not just a smoke test) — 21 tests, 99% coverage
 - [ ] Ship gate passes (`/ship`)
 
 ## Project-specific notes

@@ -31,11 +31,53 @@ bloat a repo with a full dataset). Overrode it here with one explicit exception 
 point is a real messy dataset — an interviewer cloning the repo should see the actual raw
 export, not need a Kaggle account just to reproduce a cleaning case study.
 
-### YYYY-MM-DD
-- **Tried:**
-- **Broke:**
-- **Fixed by:**
-- **Learned:**
+### 2026-08-30 — profiled before deciding, not after
+Before writing a single cleaning rule, ran a throwaway profiling script (`uv run python -c
+"..."`, not committed) against the raw CSV to get exact counts for every documented issue.
+This is what the evidence-based table in the README is built from — none of the "why" text
+is guessed:
+- **Duplicates**: confirmed all 180 duplicated `Order_ID`s have exactly one full-row twin
+  and zero conflicting values (`12,180 - 180 = 12,000 = Order_ID.nunique()` exactly). Safe
+  to drop with `keep="first"`, no fuzzy matching needed.
+- **Order_Date**: classified every value by regex (separator + segment length) into 5
+  groups. For the two ambiguous-looking groups (dash `##-##-####`, slash `##/##/####`),
+  checked whether either day-segment ever exceeded 12 — it did, but only ever in one fixed
+  slot per group (dash: never in the first slot, always possible in the second; slash: the
+  reverse). That's the proof each format is applied consistently throughout the file, not
+  row-by-row-ambiguous — a single dispatch table per format is safe.
+- **Payment_Method / Country**: counted every raw spelling and grouped by hand into
+  candidate canonical buckets, then verified the bucket totals summed to exactly `n` (no
+  orphan spelling silently dropped or double-counted) before trusting the mapping.
+- **Discount_Percent**: checked whether 0.0 already existed as an explicit value before
+  considering "impute missing as 0" — it does (4,099 rows), which ruled that option out
+  immediately. Also checked missing-rate by `Order_Status` (uniform, 5.1%-7.1%) to confirm
+  there's no order-lifecycle pattern to impute from instead.
+- **Shipping_City**: same by-status check, also uniform (3.3%-4.8%) — no pattern, so
+  filled with `"Unknown"` rather than guessing.
+- **Customer_Rating**: by-status breakdown showed **exactly** 100% missing for every
+  non-Delivered status — not "mostly", not "correlated", literally every single row. That
+  level of exactness is what justified treating it as a structural fact (can't rate an
+  undelivered order) rather than a random gap to fill.
+- **Invalid Quantity**: checked distribution by `Order_Status` — proportional to the
+  overall status mix, no concentration in Returned/Cancelled. If it had concentrated there,
+  a negative quantity might have meant "return credit" and deserved different handling.
+
+### 2026-08-30 — real bug caught by the ambiguous-date check
+First instinct for `Order_Date` was `pd.to_datetime(series, dayfirst=True)` and hope for the
+best. Writing the profiling check above first (verifying which day-segment could exceed 12
+in each format group) is what surfaced that the file uses **two different day/month orders**
+for its two 2-digit-2-digit-4-digit groups — dash-separated dates are `MM-DD-YYYY`, slash-
+separated dates are `DD/MM/YYYY`. A single `dayfirst` flag can't express that; the fix is
+the regex-dispatch table in `clean.py` keyed on separator character, not just digit pattern.
+
+### 2026-08-30 — "did cleaning change a conclusion" landed on the first real check
+The one EDA question the reviewer flagged as most valuable — did cleaning change any actual
+conclusion — didn't need to be manufactured. The very first thing checked (which payment
+method has the most orders) already had a genuine answer: naively grouping the *raw* column,
+`"paypal"` (lowercase, 709 orders) looks like the top spelling. After merging casing/format
+variants, the true winner is **Cash on Delivery** (2,070 orders) — PayPal (merged) doesn't
+even come second. Kept this as the headline "did cleaning matter" result rather than
+searching for a more dramatic one, since it's the first thing an analyst would actually ask.
 
 ---
 
@@ -45,7 +87,14 @@ export, not need a Kaggle account just to reproduce a cleaning case study.
 |---|---|
 | UCI Online Retail dataset | License "Unknown" on Kaggle; better reserved for D2's cohort/funnel analysis, which actually needs its dated per-customer invoice structure |
 | `dirty_cafe_sales` | Re-uploaded by multiple Kaggle users — too commonly used to be distinctive |
+| `pd.to_datetime(series, dayfirst=True)` for Order_Date | The file mixes `MM-DD-YYYY` (dash) and `DD/MM/YYYY` (slash) groups — a single `dayfirst` flag can't express two different conventions at once |
+| Impute missing `Discount_Percent` as 0.0 | 0.0 is already a common explicit value (4,099 rows) — imputing would conflate "confirmed no discount" with "unknown" |
+| Drop rows with invalid `Quantity` or missing `Shipping_City` | Both issues are proportionally spread across `Order_Status` with no recoverable pattern; dropping would discard otherwise-valid order data for no analytical benefit |
 
 ## Open questions
 
-- [ ]
+- [ ] None outstanding for the Tier 1 scope. A natural Tier 2 follow-up would be checking
+      whether `Unit_Price_USD` is consistent per `Product_Name` (a per-product price that
+      varies wildly across rows would be its own data-quality issue) — out of scope here
+      since it wasn't in the dataset author's documented issue list and wasn't found during
+      profiling.
