@@ -8,6 +8,7 @@ dependencies = [
     "matplotlib>=3.11.1",
     "pandas>=3.0.5",
     "seaborn>=0.13.2",
+    "tabulate>=0.10.0",
 ]
 
 # Most projects here ship a CLI. Entry points REQUIRE a real build backend —
